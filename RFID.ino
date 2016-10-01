@@ -7,7 +7,9 @@
 #define WARNING_LED 13
 
 byte currentCard[4];
-byte cardList[2][4];
+// Toi da 50 card co the luu vao EEPROM
+// Maximum 50 cards could be saved to EEPROM
+byte cardList[50][4];
 
 MFRC522 rfReader(SS_PIN, RST_PIN);
 
@@ -17,17 +19,11 @@ void setup() {
   SPI.begin();
   rfReader.PCD_Init();
 
-  // Kiem tra xem it nhat 1 card luu trong EEPROM
-  // Check if atleast 1 card saved in EEPROM
-  if (numberOfSavedCards() == 0) {
-    Serial.println("No card found");
-    newCardWizard();
-  }
-  Serial.print("Number of saved cards: ");
-  Serial.println(numberOfSavedCards(), DEC);
-  for (size_t i = 1; i < 5; i++) {
-    Serial.print(EEPROM.read(i), HEX);
-  }
+  newCardWizard();
+
+  checkForEmptyCardSaved();
+  addCardsToRAM();
+  printAllCards();
 }
 
 void loop() {
@@ -46,6 +42,51 @@ void flashLED(int pin, int delayTime) {
   delay(delayTime);
   digitalWrite(pin, LOW);
   delay(delayTime);
+}
+
+// Kiem tra xem it nhat 1 card luu trong EEPROM
+// Check if atleast 1 card saved in EEPROM
+void checkForEmptyCardSaved() {
+  if (numberOfSavedCards() == 0) {
+    Serial.println("No card found");
+    newCardWizard();
+  }
+}
+
+// Luu the tu EEPROM vao RAM
+// Add cards from EEPROM to RAM
+void addCardsToRAM() {
+  int savedCards = numberOfSavedCards();
+  for (int i = 0; i < savedCards; i++) {
+    // Luu the vao bien currentCard
+    // Assign card to currentCard
+    int slot = 1;
+    for (int j = 0; j < 4; j++) {
+      currentCard[j] = EEPROM.read(i * 4 + slot);
+      slot++;
+    }
+    // Luu currentCard vao cardList
+    // Append currentCard to cardList
+    for (int j = 0; j < 4; j++) {
+      cardList[i][j] = currentCard[j];
+    }
+  }
+  Serial.println("Cards added to RAM");
+}
+
+// In card trong RAM ra Serial
+// Print cards from RAM
+void printAllCards() {
+  int savedCards = numberOfSavedCards();
+  for (int i = 0; i < savedCards; i++) {
+    Serial.print("Card ");
+    Serial.print(i + 1);
+    Serial.print(": ");
+    for (int j = 0; j < 4; j++) {
+      Serial.print(cardList[i][j], HEX);
+    }
+    Serial.println("");
+  }
 }
 
 // Doc byte dau tien trong EEPROM
@@ -80,7 +121,8 @@ void saveCard() {
   Serial.println("Card saved");
 }
 
-// Scan a card to currentCard
+// Scan the va luu gia tri vao bien currentCard
+// Scan a card and assign to currentCard
 bool scanCard() {
   if (!rfReader.PICC_IsNewCardPresent()) { return false; }
   if (!rfReader.PICC_ReadCardSerial()) { return false; }
