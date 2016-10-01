@@ -71,12 +71,13 @@ void addCardsToRAM() {
       cardList[i][j] = currentCard[j];
     }
   }
-  Serial.println("Cards added to RAM");
+  Serial.println("Cards loaded to RAM");
 }
 
 // In card trong RAM ra Serial
 // Print cards from RAM
 void printAllCards() {
+  Serial.println("--ALL CARDS--");
   int savedCards = numberOfSavedCards();
   for (int i = 0; i < savedCards; i++) {
     Serial.print("Card ");
