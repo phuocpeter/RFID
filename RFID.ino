@@ -8,9 +8,31 @@
 
 byte currentCard[4];
 byte cardList[2][4];
-int i = 0;
 
 MFRC522 rfReader(SS_PIN, RST_PIN);
+
+void setup() {
+  setupPins();
+  Serial.begin(9600);
+  SPI.begin();
+  rfReader.PCD_Init();
+
+  // Kiem tra xem it nhat 1 card luu trong EEPROM
+  // Check if atleast 1 card saved in EEPROM
+  if (numberOfSavedCards() == 0) {
+    Serial.println("No card found");
+    newCardWizard();
+  }
+  Serial.print("Number of saved cards: ");
+  Serial.println(numberOfSavedCards(), DEC);
+  for (size_t i = 1; i < 5; i++) {
+    Serial.print(EEPROM.read(i), HEX);
+  }
+}
+
+void loop() {
+
+}
 
 void setupPins() {
   pinMode(WARNING_LED, OUTPUT);
@@ -32,49 +54,42 @@ byte numberOfSavedCards() {
   return EEPROM.read(0);
 }
 
-void setup() {
-  setupPins();
-  Serial.begin(9600);
-  SPI.begin();
-  rfReader.PCD_Init();
-
-  // Kiem tra xem it nhat 1 card luu trong EEPROM
-  // Check if atleast 1 card saved in EEPROM
-  if (numberOfSavedCards() == 0) {
-
-  }
-
-  Serial.println(EEPROM.length());
-  Serial.println("Please scan");
+// Giao dien them card
+// Interface to add card
+void newCardWizard() {
+  Serial.println("--ADD NEW CARD--");
+  Serial.println("Please scan...");
+  bool cardDectected = false;
   do {
-    readCard(i);
-  } while (i <= 1);
-  printAll();
+    cardDectected = scanCard();
+  } while (!cardDectected);
+  saveCard();
 }
 
-void loop() {
-
+// Luu the vao EEPROM
+// Save card to EEPROM
+void saveCard() {
+  int startIndex = numberOfSavedCards() * 4 + 1;
+  int endIndex = startIndex + 4;
+  int i = 0;
+  for (int address = startIndex; address < endIndex; address++) {
+    EEPROM.write(address, currentCard[i]);
+    i++;
+  }
+  EEPROM.write(0, EEPROM.read(0) + 1);
+  Serial.println("Card saved");
 }
 
-void readCard(int a) {
-  if (!rfReader.PICC_IsNewCardPresent()) { return; }
-  if (!rfReader.PICC_ReadCardSerial()) { return; }
+// Scan a card to currentCard
+bool scanCard() {
+  if (!rfReader.PICC_IsNewCardPresent()) { return false; }
+  if (!rfReader.PICC_ReadCardSerial()) { return false; }
+  Serial.print("Card Detected: ");
   for (size_t i = 0; i < 4; i++) {
     currentCard[i] = rfReader.uid.uidByte[i];
-    //Serial.print(currentCard[i], HEX);
-    cardList[a][i] = rfReader.uid.uidByte[i];
+    Serial.print(currentCard[i], HEX);
   }
+  Serial.println("");
   rfReader.PICC_HaltA();
-  Serial.println("Saved");
-  i++;
-}
-
-void printAll() {
-  for (size_t i = 0; i < 2; i++) {
-    Serial.print("Card " + (String)i + ": ");
-    for (size_t j = 0; j < 4; j++) {
-      Serial.print(cardList[i][j], HEX);
-    }
-    Serial.println("");
-  }
+  return true;
 }
